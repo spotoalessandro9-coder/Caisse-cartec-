@@ -357,9 +357,12 @@
         <!-- ÉCRAN 3 : HISTORIQUE & BILAN -->
         <div id="tab-historique" class="tab-content">
             <div class="card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; gap: 8px; flex-wrap: wrap;">
                     <h3 style="margin:0;">Historique Ventes</h3>
-                    <button class="btn btn-sm btn-green" onclick="genererBilan()">Calculer Bilan</button>
+                    <div style="display:flex; gap:6px;">
+                        <button class="btn btn-sm btn-green" onclick="genererBilan()">Calculer Bilan</button>
+                        <button class="btn btn-sm btn-red" onclick="viderHistoriqueVentes()">Vider Historique</button>
+                    </div>
                 </div>
 
                 <div id="bilanBox" style="display:none; background: rgba(48, 209, 88, 0.1); border:1px solid var(--accent-green); padding:12px; border-radius:8px; margin-bottom:15px;"></div>
@@ -615,7 +618,7 @@
             }
         }
 
-        /* HISTORIQUE ET BILAN AVEC COPIE PRESSE PAPIER */
+        /* HISTORIQUE ET BILAN */
         function afficherHistorique() {
             const container = document.getElementById('historiqueList');
             if(ventes.length === 0) {
@@ -676,6 +679,15 @@
             navigator.clipboard.writeText(texteBilanACopier).then(() => {
                 alert("Bilan copié dans le presse-papier ! Tu peux le coller dans ton tableau.");
             });
+        }
+
+        function viderHistoriqueVentes() {
+            if(confirm("⚠️ Es-tu sûr de vouloir vider tout l'historique des ventes ? Le stock ne sera pas touché.")) {
+                db.ref('ventes').remove().then(() => {
+                    document.getElementById('bilanBox').style.display = 'none';
+                    alert("Historique des ventes réinitialisé !");
+                });
+            }
         }
     </script>
 </body>
