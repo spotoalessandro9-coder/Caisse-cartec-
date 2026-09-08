@@ -162,7 +162,6 @@
 
         .search-row:last-child { border-bottom: none; }
 
-        /* NAVIGATION DOSSIERS */
         .folders-container {
             margin-top: 15px;
             border-top: 1px solid var(--border);
@@ -197,7 +196,7 @@
         .folder-card {
             background: var(--bg-input);
             border: 1px solid var(--border);
-            padding: 14px;
+            padding: 14px 10px;
             border-radius: 10px;
             text-align: center;
             font-weight: 700;
@@ -206,13 +205,22 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 6px;
+            justify-content: center;
+            gap: 8px;
+            min-height: 100px;
             transition: border-color 0.2s;
         }
 
         .folder-card:active {
             border-color: var(--accent-blue);
             background: rgba(10, 132, 255, 0.1);
+        }
+
+        .brand-logo {
+            max-width: 80%;
+            max-height: 40px;
+            object-fit: contain;
+            filter: brightness(0) invert(1);
         }
 
         .ticket-list {
@@ -473,11 +481,15 @@
         let panier = [];
         let texteBilanACopier = "";
 
-        // État de la navigation dossiers
         let marqueSelectionnee = null;
         let categorieSelectionnee = null;
 
-        const marquesDisponibles = ["Cartec", "CarPro", "Koch-Chemie"];
+        const marquesDisponibles = [
+            { nom: "Cartec", logo: "https://www.cartecworld.com/media/logo/default/logo.png" },
+            { nom: "CarPro", logo: "https://carpro.global/wp-content/uploads/2021/04/carpro-logo.png" },
+            { nom: "Koch-Chemie", logo: "https://upload.wikimedia.org/wikipedia/commons/3/30/Koch-Chemie_Logo.svg" }
+        ];
+
         const categoriesDisponibles = ["500ml", "1L", "5L", "10L", "20L", "Accessoires"];
 
         db.ref('stock').on('value', snapshot => {
@@ -507,14 +519,14 @@
             const breadcrumb = document.getElementById('folderBreadcrumb');
             grid.innerHTML = '';
 
-            // Niveau 1 : Choix de la Marque
+            // Niveau 1 : Choix de la Marque avec Logo
             if (!marqueSelectionnee) {
                 breadcrumb.innerHTML = '<span>Marques</span>';
                 marquesDisponibles.forEach(m => {
                     grid.innerHTML += `
-                        <div class="folder-card" onclick="choisirMarque('${m}')">
-                            <span style="font-size:22px;">📁</span>
-                            <span>${m}</span>
+                        <div class="folder-card" onclick="choisirMarque('${m.nom}')">
+                            <img src="${m.logo}" alt="${m.nom}" class="brand-logo">
+                            <span>${m.nom}</span>
                         </div>
                     `;
                 });
@@ -538,7 +550,7 @@
                 return;
             }
 
-            // Niveau 3 : Liste des produits de la Marque + Catégorie
+            // Niveau 3 : Liste des produits
             if (marqueSelectionnee && categorieSelectionnee) {
                 breadcrumb.innerHTML = `
                     <span class="breadcrumb-item" onclick="reinitialiserDossiers()">Marques</span> / 
