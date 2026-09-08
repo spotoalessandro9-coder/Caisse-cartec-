@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L'As Du Détail - Caisse Premium</title>
+    
+    <!-- SDK Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --bg-body: #0d0e12;
+            --bg-card: #16181e;
+            --bg-input: #21242d;
+            --accent-blue: #0a84ff;
+            --accent-green: #30d158;
+            --accent-red: #ff453a;
+            --accent-orange: #ff9f0a;
+            --text-main: #ffffff;
+            --text-muted: #8e8e93;
+            --border: #2c2e38;
+            --radius: 16px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* HEADER & TABS */
+        header {
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand-title {
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            background: linear-gradient(135deg, #fff 0%, #8e8e93 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            background: var(--bg-body);
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .tab-btn {
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            background: var(--accent-blue);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);
+        }
+
+        /* CONTAINER */
+        .container {
+            max-width: 1400px;
+            margin: 25px auto;
+            padding: 0 20px;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* DESIGN PAGE VENTE (POS GRID) */
+        .caisse-grid {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 25px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        /* CONTROLES / SELECTEURS */
+        .selectors-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .input-group label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+        }
+
+        select, input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 14px 16px;
+            border-radius: 12px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        select:focus, input:focus {
+            border-color: var(--accent-blue);
+        }
+
+        /* SEARCH BAR & RESULTS */
+        .search-box {
+            position: relative;
+        }
+
+        .search-results {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            max-height: 380px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .search-row {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .search-row:last-child { border-bottom: none; }
+
+        .search-row:hover {
+            background: rgba(10, 132, 255, 0.15);
+        }
+
+        /* TICKET DE CAISSE */
+        .ticket-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+            min-height: 550px;
+        }
+
+        .ticket-header {
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+
+        .ticket-header h2 { margin: 0; font-size: 18px; font-weight: 700; }
+
+        .ticket-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            max-height: 320px;
+            padding-right: 5px;
+        }
+
+        .ticket-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-input);
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .ticket-item-info strong { display: block; font-size: 14px; margin-bottom: 3px; }
+        .ticket-item-info small { color: var(--text-muted); font-size: 12px; }
+
+        .ticket-item-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* BOUTONS */
+        .btn {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.1s ease, filter 0.2s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:active { transform: scale(0.98); }
+        .btn-green { background: var(--accent-green); color: #000; font-weight: 800; }
+        .btn-red { background: var(--accent-red); }
+        .btn-orange { background: var(--accent-orange); color: #000; }
+
+        .btn-del {
+            background: rgba(255, 69, 58, 0.2);
+            color: var(--accent-red);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .total-display {
+            background: var(--bg-input);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            text-align: right;
+            margin: 20px 0 15px 0;
+        }
+
+        .total-display span {
+            font-size: 32px;
+            font-weight: 900;
+            color: var(--accent-green);
+        }
+
+        /* GESTION STOCK LISTE */
+        .stock-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .btn-sm {
+            padding: 8px 14px;
+            font-size: 13px;
+            width: auto;
+            border-radius: 8px;
+        }
+
+        .bilan-card {
+            background: rgba(48, 209, 88, 0.1);
+            border: 1px solid var(--accent-green);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand-title">L'AS DU DÉTAIL</div>
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('caisse')">Caisse & Vente</button>
+            <button class="tab-btn" onclick="switchTab('stock')">Gestion Stock</button>
+            <button class="tab-btn" onclick="switchTab('historique')">Historique & Bilan</button>
+        </div>
+    </header>
+
+    <div class="container">
+
+        <!-- ÉCRAN 1 : VENTE / CAISSE -->
+        <div id="tab-caisse" class="tab-content active">
+            <div class="caisse-grid">
+                
+                <!-- Côté gauche : Sélecteurs & Recherche -->
+                <div class="card">
+                    <div class="selectors-grid">
+                        <div class="input-group">
+                            <label>Tarification Client</label>
+                            <select id="selectTarif" onchange="actualiserPanier()">
+                                <option value="particulier">Particulier</option>
+                                <option value="pro">Professionnel</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Canal de Règlement</label>
+                            <select id="selectPaiement">
+                                <option value="Cash">Cash (Comptant)</option>
+                                <option value="Facture">Facture Officielle</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="input-group search-box">
+                        <label>Sélection rapide du produit</label>
+                        <input type="text" id="searchInput" placeholder="Taper le nom de l'article..." oninput="rechercherProduit()">
+                        <div id="searchResults" class="search-results" style="display:none;"></div>
+                    </div>
+                </div>
+
+                <!-- Côté droit : Ticket de Caisse -->
+                <div class="card ticket-card">
+                    <div>
+                        <div class="ticket-header">
+                            <h2>Ticket en cours</h2>
+                        </div>
+                        <div class="ticket-list" id="ticketItems">
+                            <p style="color:var(--text-muted); text-align:center; margin-top: 40px;">Aucun article dans le panier</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="total-display">
+                            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight:700;">Montant Total TTC</div>
+                            <span id="totalPrix">0.00 €</span>
+                        </div>
+                        <button class="btn btn-green" onclick="validerVente()">VALIDER L'ENCAISSEMENT</button>
+                        <button class="btn btn-red" style="margin-top: 10px; padding: 10px; font-size:13px; opacity: 0.8;" onclick="viderPanier()">Vider le panier</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ÉCRAN 2 : GESTION DU STOCK -->
+        <div id="tab-stock" class="tab-content">
+            <div class="card" style="max-width: 600px; margin: 0 auto 25px auto;">
+                <h2 id="formTitle" style="margin-top:0;">Fiche Produit</h2>
+                <form id="formArticle" onsubmit="enregistrerProduit(event)">
+                    <input type="hidden" id="editArticleId" value="">
+                    
+                    <div class="input-group" style="margin-bottom:15px;">
+                        <label>Nom du Produit</label>
+                        <input type="text" id="nom" placeholder="Ex: Koch Chemie Green Star 1L" required>
+                    </div>
+                    <div class="input-group" style="margin-bottom:15px;">
+                        <label>Quantité en Stock</label>
+                        <input type="number" id="stock" value="0" min="0" required>
+                    </div>
+                    <div class="input-group" style="margin-bottom:15px;">
+                        <label>Prix d'Achat (€)</label>
+                        <input type="number" step="0.01" id="prixAchat" placeholder="0.00" required>
+                    </div>
+                    <div class="input-group" style="margin-bottom:15px;">
+                        <label>Prix de Vente Pro (€)</label>
+                        <input type="number" step="0.01" id="prixPro" placeholder="0.00" required>
+                    </div>
+                    <div class="input-group" style="margin-bottom:20px;">
+                        <label>Prix de Vente Particulier (€)</label>
+                        <input type="number" step="0.01" id="prixParticulier" placeholder="0.00" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-orange" id="btnSubmitForm">Enregistrer dans le Stock</button>
+                    <button type="button" class="btn" id="btnCancelEdit" style="display:none; margin-top:10px; background:var(--border);" onclick="annulerEdition()">Annuler la modification</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Inventaire du Stock</h2>
+                <div id="stockList">Chargement...</div>
+            </div>
+        </div>
+
+        <!-- ÉCRAN 3 : HISTORIQUE & BILAN -->
+        <div id="tab-historique" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin:0;">Journal des Ventes</h2>
+                    <button class="btn btn-sm btn-green" onclick="genererBilan()">Calculer le Bilan</button>
+                </div>
+
+                <div id="bilanBox" class="bilan-card" style="display:none;"></div>
+                <div id="historiqueList">Chargement...</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // CONFIGURATION FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyBXpSlIjZh39Kdrxxd1a6vH30kJk-WSt44",
+            authDomain: "cartec-caisse.firebaseapp.com",
+            databaseURL: "https://cartec-caisse-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "cartec-caisse",
+            storageBucket: "cartec-caisse.appspot.com",
+            messagingSenderId: "802357519611",
+            appId: "1:802357519611:web:61016c2ccaa629bb4efc5e"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let articles = [];
+        let ventes = [];
+        let panier = [];
+
+        // Synchronisation Firebase en temps réel
+        db.ref('stock').on('value', snapshot => {
+            const data = snapshot.val();
+            articles = data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : [];
+            afficherListeStock();
+        });
+
+        db.ref('ventes').on('value', snapshot => {
+            const data = snapshot.val();
+            ventes = data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : [];
+            afficherHistorique();
+        });
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tab).classList.add('active');
+        }
+
+        /* --- ÉCRAN 1 : CAISSE --- */
+        function rechercherProduit() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            const resBox = document.getElementById('searchResults');
+            resBox.innerHTML = '';
+
+            if(!query) { resBox.style.display = 'none'; return; }
+
+            const matches = articles.filter(a => a.nom.toLowerCase().includes(query));
+            if(matches.length === 0) { resBox.style.display = 'none'; return; }
+
+            resBox.style.display = 'block';
+            const tarif = document.getElementById('selectTarif').value;
+
+            matches.forEach(a => {
+                const px = tarif === 'pro' ? a.prixPro : a.prixParticulier;
+                const row = document.createElement('div');
+                row.className = 'search-row';
+                row.innerHTML = `
+                    <span><strong>${a.nom}</strong> <small style="color:var(--text-muted); margin-left:8px;">Stock: ${a.stock}</small></span>
+                    <strong style="color:var(--accent-blue);">${px.toFixed(2)} €</strong>
+                `;
+                row.onclick = () => {
+                    ajouterAuPanier(a);
+                    document.getElementById('searchInput').value = '';
+                    resBox.style.display = 'none';
+                };
+                resBox.appendChild(row);
+            });
+        }
+
+        function ajouterAuPanier(art) {
+            const ex = panier.find(p => p.id === art.id);
+            if(ex) {
+                if(ex.qte < art.stock) ex.qte++;
+                else alert("Stock maximum atteint !");
+            } else {
+                if(art.stock > 0) panier.push({ ...art, qte: 1 });
+                else alert("Produit actuellement indisponible !");
+            }
+            actualiserPanier();
+        }
+
+        function actualiserPanier() {
+            const tarif = document.getElementById('selectTarif').value;
+            const container = document.getElementById('ticketItems');
+            container.innerHTML = '';
+            let total = 0;
+
+            if(panier.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-muted); text-align:center; margin-top: 40px;">Aucun article dans le panier</p>';
+                document.getElementById('totalPrix').innerText = '0.00 €';
+                return;
+            }
+
+            panier.forEach((item, index) => {
+                const px = tarif === 'pro' ? item.prixPro : item.prixParticulier;
+                const sousTotal = px * item.qte;
+                total += sousTotal;
+
+                container.innerHTML += `
+                    <div class="ticket-item">
+                        <div class="ticket-item-info">
+                            <strong>${item.nom}</strong>
+                            <small>${px.toFixed(2)} € × ${item.qte}</small>
+                        </div>
+                        <div class="ticket-item-actions">
+                            <strong style="font-size:15px;">${sousTotal.toFixed(2)} €</strong>
+                            <button class="btn-del" onclick="retirerDuPanier(${index})">✕</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('totalPrix').innerText = total.toFixed(2) + ' €';
+        }
+
+        function retirerDuPanier(index) {
+            panier.splice(index, 1);
+            actualiserPanier();
+        }
+
+        function viderPanier() {
+            panier = [];
+            actualiserPanier();
+        }
+
+        function validerVente() {
+            if(panier.length === 0) return alert("Le panier est vide.");
+
+            const tarif = document.getElementById('selectTarif').value;
+            const paiement = document.getElementById('selectPaiement').value;
+            let total = 0;
+
+            panier.forEach(item => {
+                const nouveauStock = item.stock - item.qte;
+                db.ref('stock/' + item.id + '/stock').set(nouveauStock);
+                const px = tarif === 'pro' ? item.prixPro : item.prixParticulier;
+                total += px * item.qte;
+            });
+
+            const venteId = 'VENTE_' + Date.now();
+            db.ref('ventes/' + venteId).set({
+                date: new Date().toLocaleString(),
+                typeClient: tarif,
+                modePaiement: paiement,
+                total: total,
+                articles: panier
+            }).then(() => {
+                viderPanier();
+                alert("Vente enregistrée avec succès !");
+            });
+        }
+
+        /* --- ÉCRAN 2 : STOCK --- */
+        function enregistrerProduit(e) {
+            e.preventDefault();
+            const editId = document.getElementById('editArticleId').value;
+
+            const articleData = {
+                nom: document.getElementById('nom').value,
+                stock: parseInt(document.getElementById('stock').value),
+                prixAchat: parseFloat(document.getElementById('prixAchat').value),
+                prixPro: parseFloat(document.getElementById('prixPro').value),
+                prixParticulier: parseFloat(document.getElementById('prixParticulier').value)
+            };
+
+            if(editId) {
+                db.ref('stock/' + editId).update(articleData).then(() => {
+                    alert("Article mis à jour !");
+                    annulerEdition();
+                });
+            } else {
+                const newId = 'PROD_' + Date.now();
+                db.ref('stock/' + newId).set(articleData).then(() => {
+                    alert("Article enregistré !");
+                    document.getElementById('formArticle').reset();
+                });
+            }
+        }
+
+        function afficherListeStock() {
+            const container = document.getElementById('stockList');
+            if(articles.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-muted);">Aucun produit enregistré.</p>';
+                return;
+            }
+
+            container.innerHTML = articles.map(a => `
+                <div class="stock-item">
+                    <div>
+                        <strong style="font-size:15px;">${a.nom}</strong><br>
+                        <small style="color:var(--text-muted);">Stock: <strong style="color:#fff;">${a.stock}</strong> | Achat: ${a.prixAchat}€ | Pro: ${a.prixPro}€ | Particulier: ${a.prixParticulier}€</small>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn btn-sm btn-orange" onclick="editerArticle('${a.id}')">Modifier</button>
+                        <button class="btn btn-sm btn-red" onclick="supprimerArticle('${a.id}')">Supprimer</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function editerArticle(id) {
+            const a = articles.find(item => item.id === id);
+            if(!a) return;
+
+            document.getElementById('editArticleId').value = a.id;
+            document.getElementById('nom').value = a.nom;
+            document.getElementById('stock').value = a.stock;
+            document.getElementById('prixAchat').value = a.prixAchat;
+            document.getElementById('prixPro').value = a.prixPro;
+            document.getElementById('prixParticulier').value = a.prixParticulier;
+
+            document.getElementById('formTitle').innerText = "Modification Produit";
+            document.getElementById('btnSubmitForm').innerText = "Appliquer les changements";
+            document.getElementById('btnCancelEdit').style.display = "block";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function annulerEdition() {
+            document.getElementById('editArticleId').value = '';
+            document.getElementById('formArticle').reset();
+            document.getElementById('formTitle').innerText = "Fiche Produit";
+            document.getElementById('btnSubmitForm').innerText = "Enregistrer dans le Stock";
+            document.getElementById('btnCancelEdit').style.display = "none";
+        }
+
+        function supprimerArticle(id) {
+            if(confirm("Supprimer définitivement cet article ?")) {
+                db.ref('stock/' + id).remove();
+            }
+        }
+
+        /* --- ÉCRAN 3 : HISTORIQUE --- */
+        function afficherHistorique() {
+            const container = document.getElementById('historiqueList');
+            if(ventes.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-muted);">Aucune transaction effectuée.</p>';
+                return;
+            }
+
+            container.innerHTML = ventes.slice().reverse().map(v => `
+                <div style="border-bottom: 1px solid var(--border); padding: 12px 0;">
+                    <span style="color:var(--text-muted); font-size:12px;">${v.date}</span><br>
+                    <strong>Mode: <span style="color:var(--accent-blue);">${v.modePaiement}</span></strong> (${v.typeClient})<br>
+                    Total : <strong style="color:var(--accent-green); font-size:16px;">${v.total ? v.total.toFixed(2) : '0.00'} €</strong>
+                </div>
+            `).join('');
+        }
+
+        function genererBilan() {
+            let totalCash = 0;
+            let totalFacture = 0;
+
+            ventes.forEach(v => {
+                if(v.modePaiement === 'Cash') totalCash += (v.total || 0);
+                else if(v.modePaiement === 'Facture') totalFacture += (v.total || 0);
+            });
+
+            const box = document.getElementById('bilanBox');
+            box.style.display = 'block';
+            box.innerHTML = `
+                <h3 style="margin:0 0 10px 0; color:var(--accent-green);">Synthèse financière</h3>
+                <p style="margin:4px 0;">Total Cash : <strong>${totalCash.toFixed(2)} €</strong></p>
+                <p style="margin:4px 0;">Total Factures : <strong>${totalFacture.toFixed(2)} €</strong></p>
+                <hr style="border:0; border-top:1px solid var(--border); margin:10px 0;">
+                <p style="margin:0; font-size:18px;">Recette Globale : <strong style="color:var(--accent-green);">${(totalCash + totalFacture).toFixed(2)} €</strong></p>
+            `;
+        }
+    </script>
+</body>
+</html>
+
