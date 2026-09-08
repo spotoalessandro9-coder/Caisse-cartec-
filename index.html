@@ -35,7 +35,6 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* HEADER RESPONSIVE */
         header {
             background-color: var(--bg-card);
             border-bottom: 1px solid var(--border);
@@ -99,7 +98,6 @@
             margin-bottom: 15px;
         }
 
-        /* GRILLE ADAPTATIVE (1 col sur mobile, 2 cols sur tablette/PC) */
         .caisse-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -143,7 +141,6 @@
             outline: none;
         }
 
-        /* RESULTATS DE RECHERCHE */
         .search-results {
             background: var(--bg-input);
             border: 1px solid var(--border);
@@ -151,6 +148,7 @@
             max-height: 280px;
             overflow-y: auto;
             margin-top: 10px;
+            display: none;
         }
 
         .search-row {
@@ -164,7 +162,6 @@
 
         .search-row:last-child { border-bottom: none; }
 
-        /* TICKET CAISSE */
         .ticket-list {
             min-height: 120px;
             max-height: 250px;
@@ -238,6 +235,22 @@
             width: auto;
             border-radius: 6px;
         }
+
+        /* HISTORIQUE ACCORDEON */
+        .history-card {
+            border-bottom: 1px solid var(--border);
+            padding: 12px 0;
+            cursor: pointer;
+        }
+
+        .history-details {
+            display: none;
+            background: var(--bg-input);
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 8px;
+            border: 1px solid var(--border);
+        }
     </style>
 </head>
 <body>
@@ -277,7 +290,7 @@
 
                     <div class="input-group">
                         <label>Recherche Article</label>
-                        <input type="text" id="searchInput" placeholder="Saisir un nom..." onkeyup="rechercherProduit()" onfocus="rechercherProduit()">
+                        <input type="text" id="searchInput" placeholder="Saisir un nom..." onkeyup="rechercherProduit()">
                         <div id="searchResults" class="search-results"></div>
                     </div>
                 </div>
@@ -373,12 +386,12 @@
         let articles = [];
         let ventes = [];
         let panier = [];
+        let texteBilanACopier = "";
 
         db.ref('stock').on('value', snapshot => {
             const data = snapshot.val();
             articles = data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : [];
             afficherListeStock();
-            rechercherProduit(); // Met à jour l'affichage dynamique
         });
 
         db.ref('ventes').on('value', snapshot => {
@@ -395,22 +408,26 @@
             document.getElementById('tab-' + tab).classList.add('active');
         }
 
-        /* --- RECHERCHE TEMPS RÉEL + LISTE GLOBALE --- */
+        /* RECHERCHE - APPARAIT SEULEMENT SI TAPÉ */
         function rechercherProduit() {
             const query = document.getElementById('searchInput').value.toLowerCase().trim();
             const resBox = document.getElementById('searchResults');
             resBox.innerHTML = '';
 
-            // Affiche tous les produits si le champ est vide, ou filtre si une lettre est tapée
-            const matches = query === '' 
-                ? articles 
-                : articles.filter(a => a.nom.toLowerCase().includes(query));
+            if (query === '') {
+                resBox.style.display = 'none';
+                return;
+            }
+
+            const matches = articles.filter(a => a.nom.toLowerCase().includes(query));
 
             if(matches.length === 0) {
+                resBox.style.display = 'block';
                 resBox.innerHTML = '<p style="padding:10px; color:var(--text-muted); text-align:center; margin:0;">Aucun article trouvé</p>';
                 return;
             }
 
+            resBox.style.display = 'block';
             const tarif = document.getElementById('selectTarif').value;
 
             matches.forEach(a => {
@@ -421,7 +438,11 @@
                     <span><strong>${a.nom}</strong> <small style="color:var(--text-muted);">(${a.stock})</small></span>
                     <strong style="color:var(--accent-blue);">${px.toFixed(2)} €</strong>
                 `;
-                row.onclick = () => ajouterAuPanier(a);
+                row.onclick = () => {
+                    ajouterAuPanier(a);
+                    document.getElementById('searchInput').value = '';
+                    resBox.style.display = 'none';
+                };
                 resBox.appendChild(row);
             });
         }
@@ -509,7 +530,7 @@
             });
         }
 
-        /* --- GESTION DU STOCK --- */
+        /* GESTION STOCK */
         function enregistrerProduit(e) {
             e.preventDefault();
             const editId = document.getElementById('editArticleId').value;
@@ -588,16 +609,13 @@
             }
         }
 
-        /* SUPPRESSION COMPLETE DU STOCK */
         function viderToutLeStock() {
-            if(confirm("⚠️ ATTENTION : Es-tu SÛR de vouloir supprimer l'intégralité du stock ? Cette action est irréversible !")) {
-                db.ref('stock').remove().then(() => {
-                    alert("Le stock a été totalement réinitialisé !");
-                });
+            if(confirm("⚠️ Supprimer TOUT le stock ?")) {
+                db.ref('stock').remove().then(() => alert("Stock réinitialisé !"));
             }
         }
 
-        /* --- HISTORIQUE --- */
+        /* HISTORIQUE ET BILAN AVEC COPIE PRESSE PAPIER */
         function afficherHistorique() {
             const container = document.getElementById('historiqueList');
             if(ventes.length === 0) {
@@ -605,23 +623,42 @@
                 return;
             }
 
-            container.innerHTML = ventes.slice().reverse().map(v => `
-                <div style="border-bottom: 1px solid var(--border); padding: 10px 0;">
-                    <small style="color:var(--text-muted);">${v.date}</small><br>
-                    <strong>Mode: ${v.modePaiement}</strong> (${v.typeClient})<br>
-                    Total : <strong style="color:var(--accent-green);">${v.total ? v.total.toFixed(2) : '0.00'} €</strong>
-                </div>
-            `).join('');
+            container.innerHTML = ventes.slice().reverse().map((v, i) => {
+                const artsList = (v.articles || []).map(a => `• ${a.nom} x${a.qte}`).join('<br>');
+                return `
+                    <div class="history-card" onclick="toggleDetails(${i})">
+                        <small style="color:var(--text-muted);">${v.date}</small><br>
+                        <strong>Mode: ${v.modePaiement}</strong> (${v.typeClient}) - Total : <strong style="color:var(--accent-green);">${v.total ? v.total.toFixed(2) : '0.00'} €</strong>
+                        <div id="details-${i}" class="history-details">
+                            <small style="color:var(--text-muted); display:block; margin-bottom:4px;">Articles vendus :</small>
+                            ${artsList || 'Aucun détail'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleDetails(index) {
+            const el = document.getElementById(`details-${index}`);
+            el.style.display = el.style.display === 'block' ? 'none' : 'block';
         }
 
         function genererBilan() {
             let totalCash = 0;
             let totalFacture = 0;
+            let detailsVentesText = "";
 
             ventes.forEach(v => {
                 if(v.modePaiement === 'Cash') totalCash += (v.total || 0);
                 else if(v.modePaiement === 'Facture') totalFacture += (v.total || 0);
+
+                const arts = (v.articles || []).map(a => `${a.nom} (x${a.qte})`).join(', ');
+                detailsVentesText += `${v.date} | ${v.modePaiement} (${v.typeClient}) | ${v.total.toFixed(2)}€ | ${arts}\n`;
             });
+
+            const totalGen = totalCash + totalFacture;
+
+            texteBilanACopier = `BILAN DES VENTESTotal Cash : ${totalCash.toFixed(2)} €\nTotal Facture : ${totalFacture.toFixed(2)} €\nTOTAL GÉNÉRAL : ${totalGen.toFixed(2)} €\n\nDÉTAIL DES TRANSACTIONS :\n${detailsVentesText}`;
 
             const box = document.getElementById('bilanBox');
             box.style.display = 'block';
@@ -630,8 +667,15 @@
                 Cash : <strong>${totalCash.toFixed(2)} €</strong><br>
                 Facture : <strong>${totalFacture.toFixed(2)} €</strong><br>
                 <hr style="border:0; border-top:1px solid var(--border); margin:6px 0;">
-                Total : <strong>${(totalCash + totalFacture).toFixed(2)} €</strong>
+                Total : <strong>${totalGen.toFixed(2)} €</strong>
+                <button class="btn btn-sm" style="margin-top:10px; background:var(--accent-blue);" onclick="copierBilan()">Copier le bilan complet</button>
             `;
+        }
+
+        function copierBilan() {
+            navigator.clipboard.writeText(texteBilanACopier).then(() => {
+                alert("Bilan copié dans le presse-papier ! Tu peux le coller dans ton tableau.");
+            });
         }
     </script>
 </body>
