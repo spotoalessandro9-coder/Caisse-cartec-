@@ -162,6 +162,59 @@
 
         .search-row:last-child { border-bottom: none; }
 
+        /* NAVIGATION DOSSIERS */
+        .folders-container {
+            margin-top: 15px;
+            border-top: 1px solid var(--border);
+            padding-top: 12px;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--accent-blue);
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .breadcrumb-item {
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .folder-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        @media (min-width: 500px) {
+            .folder-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        .folder-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            padding: 14px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            transition: border-color 0.2s;
+        }
+
+        .folder-card:active {
+            border-color: var(--accent-blue);
+            background: rgba(10, 132, 255, 0.1);
+        }
+
         .ticket-list {
             min-height: 120px;
             max-height: 250px;
@@ -236,7 +289,6 @@
             border-radius: 6px;
         }
 
-        /* HISTORIQUE ACCORDEON */
         .history-card {
             border-bottom: 1px solid var(--border);
             padding: 12px 0;
@@ -274,7 +326,7 @@
                     <div class="selectors-grid">
                         <div class="input-group">
                             <label>Tarification</label>
-                            <select id="selectTarif" onchange="actualiserPanier(); rechercherProduit();">
+                            <select id="selectTarif" onchange="actualiserPanier(); rechercherProduit(); afficherContenuDossier();">
                                 <option value="particulier">Particulier</option>
                                 <option value="pro">Pro</option>
                             </select>
@@ -292,6 +344,14 @@
                         <label>Recherche Article</label>
                         <input type="text" id="searchInput" placeholder="Saisir un nom..." onkeyup="rechercherProduit()">
                         <div id="searchResults" class="search-results"></div>
+                    </div>
+
+                    <!-- EXPLORATEUR PAR DOSSIERS -->
+                    <div class="folders-container">
+                        <div class="breadcrumb" id="folderBreadcrumb">
+                            <span>Marques</span>
+                        </div>
+                        <div class="folder-grid" id="folderContent"></div>
                     </div>
                 </div>
 
@@ -319,9 +379,31 @@
                 <form id="formArticle" onsubmit="enregistrerProduit(event)">
                     <input type="hidden" id="editArticleId" value="">
                     
+                    <div class="selectors-grid">
+                        <div class="input-group">
+                            <label>Marque</label>
+                            <select id="marque" required>
+                                <option value="Cartec">Cartec</option>
+                                <option value="CarPro">CarPro</option>
+                                <option value="Koch-Chemie">Koch-Chemie</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Catégorie</label>
+                            <select id="categorie" required>
+                                <option value="500ml">500 ml</option>
+                                <option value="1L">1 L</option>
+                                <option value="5L">5 L</option>
+                                <option value="10L">10 L</option>
+                                <option value="20L">20 L</option>
+                                <option value="Accessoires">Accessoires</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="input-group" style="margin-bottom:10px;">
                         <label>Nom du Produit</label>
-                        <input type="text" id="nom" required>
+                        <input type="text" id="nom" placeholder="ex: Speed Glass Cleaner" required>
                     </div>
                     <div class="input-group" style="margin-bottom:10px;">
                         <label>Quantité Stock</label>
@@ -391,10 +473,18 @@
         let panier = [];
         let texteBilanACopier = "";
 
+        // État de la navigation dossiers
+        let marqueSelectionnee = null;
+        let categorieSelectionnee = null;
+
+        const marquesDisponibles = ["Cartec", "CarPro", "Koch-Chemie"];
+        const categoriesDisponibles = ["500ml", "1L", "5L", "10L", "20L", "Accessoires"];
+
         db.ref('stock').on('value', snapshot => {
             const data = snapshot.val();
             articles = data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : [];
             afficherListeStock();
+            afficherContenuDossier();
         });
 
         db.ref('ventes').on('value', snapshot => {
@@ -411,7 +501,95 @@
             document.getElementById('tab-' + tab).classList.add('active');
         }
 
-        /* RECHERCHE - APPARAIT SEULEMENT SI TAPÉ */
+        /* NAVIGATION DOSSIERS & MARQUES */
+        function afficherContenuDossier() {
+            const grid = document.getElementById('folderContent');
+            const breadcrumb = document.getElementById('folderBreadcrumb');
+            grid.innerHTML = '';
+
+            // Niveau 1 : Choix de la Marque
+            if (!marqueSelectionnee) {
+                breadcrumb.innerHTML = '<span>Marques</span>';
+                marquesDisponibles.forEach(m => {
+                    grid.innerHTML += `
+                        <div class="folder-card" onclick="choisirMarque('${m}')">
+                            <span style="font-size:22px;">📁</span>
+                            <span>${m}</span>
+                        </div>
+                    `;
+                });
+                return;
+            }
+
+            // Niveau 2 : Choix de la Catégorie
+            if (marqueSelectionnee && !categorieSelectionnee) {
+                breadcrumb.innerHTML = `
+                    <span class="breadcrumb-item" onclick="reinitialiserDossiers()">Marques</span> / 
+                    <span>${marqueSelectionnee}</span>
+                `;
+                categoriesDisponibles.forEach(cat => {
+                    grid.innerHTML += `
+                        <div class="folder-card" onclick="choisirCategorie('${cat}')">
+                            <span style="font-size:22px;">📂</span>
+                            <span>${cat}</span>
+                        </div>
+                    `;
+                });
+                return;
+            }
+
+            // Niveau 3 : Liste des produits de la Marque + Catégorie
+            if (marqueSelectionnee && categorieSelectionnee) {
+                breadcrumb.innerHTML = `
+                    <span class="breadcrumb-item" onclick="reinitialiserDossiers()">Marques</span> / 
+                    <span class="breadcrumb-item" onclick="choisirMarque('${marqueSelectionnee}')">${marqueSelectionnee}</span> / 
+                    <span>${categorieSelectionnee}</span>
+                `;
+
+                const produitsFiltres = articles.filter(a => 
+                    a.marque === marqueSelectionnee && a.categorie === categorieSelectionnee
+                );
+
+                if (produitsFiltres.length === 0) {
+                    grid.innerHTML = '<p style="grid-column:1/-1; color:var(--text-muted); text-align:center; padding:15px; margin:0;">Aucun produit dans cette catégorie</p>';
+                    return;
+                }
+
+                const tarif = document.getElementById('selectTarif').value;
+                produitsFiltres.forEach(a => {
+                    const px = tarif === 'pro' ? a.prixPro : a.prixParticulier;
+                    const card = document.createElement('div');
+                    card.className = 'folder-card';
+                    card.style.borderColor = 'var(--accent-blue)';
+                    card.innerHTML = `
+                        <span style="font-size:13px; font-weight:700;">${a.nom}</span>
+                        <small style="color:var(--text-muted);">Stock: ${a.stock}</small>
+                        <strong style="color:var(--accent-green); margin-top:2px;">${px.toFixed(2)} €</strong>
+                    `;
+                    card.onclick = () => ajouterAuPanier(a);
+                    grid.appendChild(card);
+                });
+            }
+        }
+
+        function choisirMarque(m) {
+            marqueSelectionnee = m;
+            categorieSelectionnee = null;
+            afficherContenuDossier();
+        }
+
+        function choisirCategorie(cat) {
+            categorieSelectionnee = cat;
+            afficherContenuDossier();
+        }
+
+        function reinitialiserDossiers() {
+            marqueSelectionnee = null;
+            categorieSelectionnee = null;
+            afficherContenuDossier();
+        }
+
+        /* RECHERCHE MANUELLE */
         function rechercherProduit() {
             const query = document.getElementById('searchInput').value.toLowerCase().trim();
             const resBox = document.getElementById('searchResults');
@@ -438,7 +616,7 @@
                 const row = document.createElement('div');
                 row.className = 'search-row';
                 row.innerHTML = `
-                    <span><strong>${a.nom}</strong> <small style="color:var(--text-muted);">(${a.stock})</small></span>
+                    <span><strong>${a.nom}</strong> <small style="color:var(--text-muted);">(${a.marque || ''} - ${a.stock})</small></span>
                     <strong style="color:var(--accent-blue);">${px.toFixed(2)} €</strong>
                 `;
                 row.onclick = () => {
@@ -539,6 +717,8 @@
             const editId = document.getElementById('editArticleId').value;
 
             const articleData = {
+                marque: document.getElementById('marque').value,
+                categorie: document.getElementById('categorie').value,
                 nom: document.getElementById('nom').value,
                 stock: parseInt(document.getElementById('stock').value),
                 prixAchat: parseFloat(document.getElementById('prixAchat').value),
@@ -570,7 +750,7 @@
             container.innerHTML = articles.map(a => `
                 <div class="stock-item">
                     <div>
-                        <strong>${a.nom}</strong><br>
+                        <strong>${a.nom}</strong> <small style="color:var(--accent-blue);">[${a.marque || 'N/A'} - ${a.categorie || 'N/A'}]</small><br>
                         <small style="color:var(--text-muted);">Stock: ${a.stock} | Achat: ${a.prixAchat}€ | Pro: ${a.prixPro}€ | Part: ${a.prixParticulier}€</small>
                     </div>
                     <div style="display:flex; gap:6px;">
@@ -586,6 +766,8 @@
             if(!a) return;
 
             document.getElementById('editArticleId').value = a.id;
+            document.getElementById('marque').value = a.marque || 'Cartec';
+            document.getElementById('categorie').value = a.categorie || '500ml';
             document.getElementById('nom').value = a.nom;
             document.getElementById('stock').value = a.stock;
             document.getElementById('prixAchat').value = a.prixAchat;
