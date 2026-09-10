@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -422,7 +421,9 @@
                         <div class="input-group">
                             <label>Catégorie</label>
                             <select id="categorie" required>
+                                <option value="300ml">300 ml</option>
                                 <option value="500ml">500 ml</option>
+                                <option value="750ml">750 ml</option>
                                 <option value="1L">1 L</option>
                                 <option value="5L">5 L</option>
                                 <option value="10L">10 L</option>
@@ -511,7 +512,7 @@
         const marquesDisponibles = [
             { 
                 nom: "Cartec", 
-                logo: "https://upload.wikimedia.org/wikipedia/commons/ thumb/8/8e/Cartec_logo.svg/512px-Cartec_logo.svg.png", 
+                logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Cartec_logo.svg/512px-Cartec_logo.svg.png", 
                 initiale: "C" 
             },
             { 
@@ -526,7 +527,7 @@
             }
         ];
 
-        const categoriesDisponibles = ["500ml", "1L", "5L", "10L", "20L", "Accessoires"];
+        const categoriesDisponibles = ["300ml", "500ml", "750ml", "1L", "5L", "10L", "20L", "Accessoires"];
 
         db.ref('stock').on('value', snapshot => {
             const data = snapshot.val();
@@ -893,7 +894,7 @@
 
             const totalGen = totalCash + totalFacture;
 
-            texteBilanACopier = `BILAN DES VENTESTotal Cash : ${totalCash.toFixed(2)} €\nTotal Facture : ${totalFacture.toFixed(2)} €\nTOTAL GÉNÉRAL : ${totalGen.toFixed(2)} €\n\nDÉTAIL DES TRANSACTIONS :\n${detailsVentesText}`;
+            texteBilanACopier = `BILAN DES VENTES\nTotal Cash : ${totalCash.toFixed(2)} €\nTotal Facture : ${totalFacture.toFixed(2)} €\nTOTAL GÉNÉRAL : ${totalGen.toFixed(2)} €\n\nDÉTAIL DES TRANSACTIONS :\n${detailsVentesText}`;
 
             const box = document.getElementById('bilanBox');
             box.style.display = 'block';
