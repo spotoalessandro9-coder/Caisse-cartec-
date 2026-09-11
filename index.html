@@ -421,6 +421,7 @@
                         <div class="input-group">
                             <label>Catégorie</label>
                             <select id="categorie" required>
+                                <option value="Vrac">Vrac</option>
                                 <option value="300ml">300 ml</option>
                                 <option value="500ml">500 ml</option>
                                 <option value="750ml">750 ml</option>
@@ -527,7 +528,7 @@
             }
         ];
 
-        const categoriesDisponibles = ["300ml", "500ml", "750ml", "1L", "5L", "10L", "20L", "Accessoires"];
+        const categoriesDisponibles = ["Vrac", "300ml", "500ml", "750ml", "1L", "5L", "10L", "20L", "Accessoires"];
 
         db.ref('stock').on('value', snapshot => {
             const data = snapshot.val();
